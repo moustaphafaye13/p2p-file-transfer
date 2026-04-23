@@ -1,7 +1,12 @@
 server:
-  port: ${PORT:5001}
+  port: 5001
 
 node:
-  storage: storage_node_${PORT:5000}
+  storage: storage_node_5001
   peers:
-    - http://localhost:5001
+    - http://localhost:5000
+
+logging:
+  level:
+    org:
+      springframework: DEBUG

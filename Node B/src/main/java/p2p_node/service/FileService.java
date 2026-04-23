@@ -4,6 +4,10 @@ import p2p_node.config.NodeConfig;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -15,6 +19,8 @@ public class FileService {
 
     @Autowired
     private NodeConfig config;
+
+    private final RestTemplate restTemplate = new RestTemplate();
 
     // ✅ Sauvegarde fichier
     public void saveFile(String filename, byte[] data) {
@@ -48,5 +54,43 @@ public class FileService {
         } catch (IOException e) {
             throw new RuntimeException("Erreur lecture fichier", e);
         }
+    }
+
+    // ✅ ajouter la réplication 
+    public void replicateFile(String filename, byte[] data) {
+        // pour chaque pair connu, envoyer le fichier
+        for (String peer : config.getPeers()) {
+            try {
+                String url = peer + "/files/" + filename;
+                HttpHeaders headers = new HttpHeaders();
+                headers.set("X-Replication-Call", "true");
+                HttpEntity<byte[]> requestEntity = new HttpEntity<>(data, headers);
+                restTemplate.exchange(url, HttpMethod.POST, requestEntity, String.class);
+                System.out.println("Fichier répliqué à " + peer);
+            } catch (Exception e) {
+                System.err.println("Erreur réplication vers " + peer + ": " + e.getMessage());
+            }
+        }
+    }
+
+    // Recherche distribuée des fichiers
+    // il faut implémenter un mécanisme de recherche qui interroge les pairs pour trouver un fichier
+    public byte[] searchFile(String filename) {
+        // interroger chaque pair
+        for (String peer : config.getPeers()) {
+            try {
+                String url = peer + "/files/download/" + filename;
+                byte[] data = restTemplate.getForObject(url, byte[].class);
+                if (data != null) {
+                    System.out.println("Fichier trouvé chez " + peer);
+                    return data;
+                }
+            } catch (Exception e) {
+                // si l'interrogation échoue, continue avec le pro pair
+                System.err.println("Erreur recherche chez " + peer + ": " + e.getMessage());
+            }
+        }
+        // si aucun pair a trouvé le fichier, renvoie null
+        return null;
     }
 }
