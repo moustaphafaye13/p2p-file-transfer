@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
@@ -80,10 +82,16 @@ public class FileService {
         for (String peer : config.getPeers()) {
             try {
                 String url = peer + "/files/download/" + filename;
-                byte[] data = restTemplate.getForObject(url, byte[].class);
-                if (data != null) {
+                
+                // Créer des headers HTTP pour identifier cette requête comme une recherche
+                HttpHeaders headers = new HttpHeaders();
+                headers.set("X-Search-Call", "true");
+                HttpEntity<String> entity = new HttpEntity<>(headers);
+                
+                ResponseEntity<byte[]> response = restTemplate.exchange(url, HttpMethod.GET, entity, byte[].class);
+                if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
                     System.out.println("Fichier trouvé chez " + peer);
-                    return data;
+                    return response.getBody();
                 }
             } catch (Exception e) {
                 // si l'interrogation échoue, continue avec le pro pair
